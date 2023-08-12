@@ -65,6 +65,8 @@ func GetEvents(ctx context.Context, client *notionapi.Client, databaseID string)
 						event.StartTime = time.Time(*prop.Date.Start)
 						if prop.Date.End != nil {
 							event.EndTime = time.Time(*prop.Date.End)
+						} else {
+							event.EndTime = event.StartTime.Add(24 * time.Hour)
 						}
 					}
 				default:

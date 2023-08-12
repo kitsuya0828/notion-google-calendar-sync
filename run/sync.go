@@ -14,6 +14,7 @@ import (
 type Config struct {
 	NotionToken      string `env:"NOTION_TOKEN,notEmpty"`
 	NotionDatabaseID string `env:"NOTION_DATABASE_ID,notEmpty"`
+	GoogleCalendarID string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
 }
 
 func Sync() {
@@ -38,7 +39,7 @@ func Sync() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	GoogleCalendarEvents, err := googlecalendar.GetEvents(googleCalendarService)
+	GoogleCalendarEvents, err := googlecalendar.GetEvents(googleCalendarService, cfg.GoogleCalendarID)
 	if err != nil {
 		log.Fatalf("failed to get events from Google Calendar: %v\n", err)
 	}
