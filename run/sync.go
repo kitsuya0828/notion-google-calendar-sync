@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/googlecalendar"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/notion"
 	"github.com/caarlos0/env/v9"
@@ -15,6 +16,7 @@ type Config struct {
 	NotionToken      string `env:"NOTION_TOKEN,notEmpty"`
 	NotionDatabaseID string `env:"NOTION_DATABASE_ID,notEmpty"`
 	GoogleCalendarID string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
+	ProjectID        string `env:"PROJECT_ID,notEmpty"`
 }
 
 func Sync() {
@@ -26,7 +28,7 @@ func Sync() {
 	}
 
 	notionClient := notion.NewClient(cfg.NotionToken)
-	notionEvents, err := notion.GetEvents(ctx, notionClient, cfg.NotionDatabaseID)
+	notionEvents, err := notion.ListEvents(ctx, notionClient, cfg.NotionDatabaseID)
 	if err != nil {
 		log.Fatalf("failed to get events from Notion: %v\n", err)
 	}
@@ -39,11 +41,14 @@ func Sync() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	GoogleCalendarEvents, err := googlecalendar.GetEvents(googleCalendarService, cfg.GoogleCalendarID)
+	googleCalendarEvents, err := googlecalendar.ListEvents(googleCalendarService, cfg.GoogleCalendarID)
 	if err != nil {
 		log.Fatalf("failed to get events from Google Calendar: %v\n", err)
 	}
-	if result, err := json.Marshal(GoogleCalendarEvents); err == nil {
+	if result, err := json.Marshal(googleCalendarEvents); err == nil {
 		fmt.Println(string(result))
 	}
+
+	client := firestore.CreateClient(ctx, cfg.ProjectID)
+	firestore.InsertEvents(ctx, client, googleCalendarEvents)
 }

@@ -15,8 +15,16 @@ func NewClient(token string) *notionapi.Client {
 	return client
 }
 
-func GetEvents(ctx context.Context, client *notionapi.Client, databaseID string) ([]*event.Event, error) {
-	req := &notionapi.DatabaseQueryRequest{}
+func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string) ([]*event.Event, error) {
+	now := notionapi.Date(time.Now())
+	req := &notionapi.DatabaseQueryRequest{
+		Filter: &notionapi.PropertyFilter{
+			Property: "Date",
+			Date: &notionapi.DateFilterCondition{
+				After: &now,
+			},
+		},
+	}
 	events := []*event.Event{}
 	for {
 		response, err := client.Database.Query(ctx, notionapi.DatabaseID(databaseID), req)

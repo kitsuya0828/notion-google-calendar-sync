@@ -2,7 +2,6 @@ package googlecalendar
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/event"
@@ -14,11 +13,11 @@ func NewService(ctx context.Context) (*calendar.Service, error) {
 	return calendar.NewService(ctx, option.WithCredentialsFile("credentials.json"))
 }
 
-func GetEvents(service *calendar.Service, calendarID string) ([]*event.Event, error) {
+func ListEvents(service *calendar.Service, calendarID string) ([]*event.Event, error) {
 	events := []*event.Event{}
 	result, err := service.Events.List(calendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve events: %v", err)
+		return nil, err
 	}
 
 	for _, item := range result.Items {

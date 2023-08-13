@@ -2,14 +2,15 @@ package event
 
 import "time"
 
+// Event represents an event to be stored in the database
 type Event struct {
-	Title            string    `json:"title"`
-	StartTime        time.Time `json:"start_time"`
-	EndTime          time.Time `json:"end_time"`
-	CreatedTime      time.Time `json:"created_time"`
-	UpdatedTime      time.Time `json:"updated_time"`
-	Tags             []string  `json:"tags"`
-	NotionID         string    `json:"notion_id"`
-	GoogleCalendarID string    `json:"google_calendar_id"`
-	Description      string    `json:"description"`
+	Title            string    `firestore:"title"`
+	StartTime        time.Time `firestore:"start_time"`
+	EndTime          time.Time `firestore:"end_time"`
+	CreatedTime      time.Time `firestore:"created_time"`
+	UpdatedTime      time.Time `firestore:"updated_time"`
+	Tags             []string  `firestore:"tags"`
+	NotionID         string    `firestore:"notion_id"`
+	GoogleCalendarID string    `firestore:"google_calendar_id"`
+	Description      string    `firestore:"description"`
 }
