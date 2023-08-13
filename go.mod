@@ -1,4 +1,4 @@
-module github.com/Kitsuya0828/notion-google-calendar-sync
+module github.com/Kitsuya0828/notion-googlecalendar-sync
 
 go 1.20
 

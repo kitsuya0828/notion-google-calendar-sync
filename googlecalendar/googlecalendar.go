@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Kitsuya0828/notion-google-calendar-sync/event"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/event"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Kitsuya0828/notion-google-calendar-sync/event"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/event"
 	"github.com/jomei/notionapi"
 )
 

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Kitsuya0828/notion-google-calendar-sync/googlecalendar"
-	"github.com/Kitsuya0828/notion-google-calendar-sync/notion"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/googlecalendar"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/notion"
 	"github.com/caarlos0/env/v9"
 )
 
