@@ -2,8 +2,6 @@ package run
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
@@ -33,10 +31,6 @@ func Sync() {
 		log.Fatalf("failed to get events from Notion: %v\n", err)
 	}
 
-	if result, err := json.Marshal(notionEvents); err == nil {
-		fmt.Println(string(result))
-	}
-
 	googleCalendarService, err := googlecalendar.NewService(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -45,10 +39,13 @@ func Sync() {
 	if err != nil {
 		log.Fatalf("failed to get events from Google Calendar: %v\n", err)
 	}
-	if result, err := json.Marshal(googleCalendarEvents); err == nil {
-		fmt.Println(string(result))
-	}
 
 	client := firestore.CreateClient(ctx, cfg.ProjectID)
-	firestore.InsertEvents(ctx, client, googleCalendarEvents)
+	defer client.Close()
+	for _, event := range notionEvents {
+		firestore.AddEvent(ctx, client, event)
+	}
+	for _, event := range googleCalendarEvents {
+		firestore.AddEvent(ctx, client, event)
+	}
 }

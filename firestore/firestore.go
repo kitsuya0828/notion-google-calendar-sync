@@ -5,8 +5,12 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/event"
+	"github.com/google/uuid"
 	"google.golang.org/api/option"
+)
+
+const (
+	collectionID = "events"
 )
 
 func CreateClient(ctx context.Context, projectID string) *firestore.Client {
@@ -19,12 +23,16 @@ func CreateClient(ctx context.Context, projectID string) *firestore.Client {
 	return client
 }
 
-func InsertEvents(ctx context.Context, client *firestore.Client, events []*event.Event) error {
-	for _, e := range events {
-		_, _, err := client.Collection("events").Add(ctx, e)
-		if err != nil {
-			return err
-		}
+func AddEvent(ctx context.Context, client *firestore.Client, event *Event) error {
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		return err
+	}
+	event.UUID = uuid.String()
+
+	_, err = client.Collection(collectionID).Doc(uuid.String()).Create(ctx, event)
+	if err != nil {
+		return err
 	}
 	return nil
 }

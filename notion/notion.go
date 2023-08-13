@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/event"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
 	"github.com/jomei/notionapi"
 )
 
@@ -15,7 +15,7 @@ func NewClient(token string) *notionapi.Client {
 	return client
 }
 
-func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string) ([]*event.Event, error) {
+func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string) ([]*firestore.Event, error) {
 	now := notionapi.Date(time.Now())
 	req := &notionapi.DatabaseQueryRequest{
 		Filter: &notionapi.PropertyFilter{
@@ -25,7 +25,7 @@ func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string
 			},
 		},
 	}
-	events := []*event.Event{}
+	events := []*firestore.Event{}
 	for {
 		response, err := client.Database.Query(ctx, notionapi.DatabaseID(databaseID), req)
 		if err != nil {
@@ -33,7 +33,7 @@ func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string
 		}
 
 		for _, r := range response.Results {
-			event := &event.Event{NotionID: r.ID.String()}
+			event := &firestore.Event{NotionEventID: r.ID.String()}
 			for _, property := range r.Properties {
 				switch pt := property.GetType(); pt {
 				case "title":
