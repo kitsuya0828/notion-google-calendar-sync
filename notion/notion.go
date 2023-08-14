@@ -47,7 +47,8 @@ func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string
 					prop, ok := property.(*notionapi.MultiSelectProperty)
 					if ok {
 						for _, o := range prop.MultiSelect {
-							event.Tags = append(event.Tags, o.Name)
+							event.Color = o.Color.String()
+							break
 						}
 					}
 				case "created_time":
