@@ -110,6 +110,7 @@ func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string
 func CreateEvent(ctx context.Context, client *notionapi.Client, databaseID string, event *firestore.Event) (string, error) {
 	startTime := notionapi.Date(event.StartTime)
 	endTime := notionapi.Date(event.EndTime)
+	// This SDK cannot handle all day events
 	if event.EndTime.Hour() == 0 && event.EndTime.Minute() == 0 {	// For convenience of Notion display
 		endTime = notionapi.Date(event.EndTime.Add(- time.Second))
 	}
