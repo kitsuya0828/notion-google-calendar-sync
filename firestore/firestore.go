@@ -2,10 +2,10 @@ package firestore
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"cloud.google.com/go/firestore"
-	"github.com/google/uuid"
 	"google.golang.org/api/option"
 )
 
@@ -24,13 +24,28 @@ func CreateClient(ctx context.Context, projectID string) *firestore.Client {
 }
 
 func AddEvent(ctx context.Context, client *firestore.Client, event *Event) error {
-	uuid, err := uuid.NewRandom()
+	uuid := event.UUID
+	if uuid == "" {
+		return fmt.Errorf("no UUID is set for the event: %v", event)
+	}
+
+	_, err := client.Collection(collectionID).Doc(uuid).Create(ctx, event)
 	if err != nil {
 		return err
 	}
-	event.UUID = uuid.String()
+	return nil
+}
 
-	_, err = client.Collection(collectionID).Doc(uuid.String()).Create(ctx, event)
+func UpdateEvent(ctx context.Context, client *firestore.Client, event *Event) error {
+	_, err := client.Collection(collectionID).Doc(event.UUID).Set(ctx, event)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteEvent(ctx context.Context, client *firestore.Client, event *Event) error {
+	_, err := client.Collection(collectionID).Doc(event.UUID).Delete(ctx)
 	if err != nil {
 		return err
 	}

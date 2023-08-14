@@ -17,20 +17,23 @@ type Config struct {
 	ProjectID        string `env:"PROJECT_ID,notEmpty"`
 }
 
-func Sync() {
+func Run() {
 	ctx := context.Background()
 
+	// Parse environment varibles
 	cfg := Config{}
 	if err := env.Parse(&cfg); err != nil {
 		log.Fatal(err)
 	}
 
+	// Get future events in Notion database
 	notionClient := notion.NewClient(cfg.NotionToken)
 	notionEvents, err := notion.ListEvents(ctx, notionClient, cfg.NotionDatabaseID)
 	if err != nil {
 		log.Fatalf("failed to get events from Notion: %v\n", err)
 	}
 
+	// Get future events in Google Calendar
 	googleCalendarService, err := googlecalendar.NewService(ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -40,12 +43,24 @@ func Sync() {
 		log.Fatalf("failed to get events from Google Calendar: %v\n", err)
 	}
 
-	client := firestore.CreateClient(ctx, cfg.ProjectID)
-	defer client.Close()
-	for _, event := range notionEvents {
-		firestore.AddEvent(ctx, client, event)
-	}
+	// Initialize Firestore client
+	firestoreClient := firestore.CreateClient(ctx, cfg.ProjectID)
+	defer firestoreClient.Close()
+
 	for _, event := range googleCalendarEvents {
-		firestore.AddEvent(ctx, client, event)
+		firestore.AddEvent(ctx, firestoreClient, event)
 	}
+
+	// Check if new events have been added
+	err = checkAdd(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// for _, event := range notionEvents {
+	// 	firestore.AddEvent(ctx, client, event)
+	// }
+	// for _, event := range googleCalendarEvents {
+	// 	firestore.AddEvent(ctx, client, event)
+	// }
 }

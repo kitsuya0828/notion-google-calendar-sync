@@ -20,6 +20,12 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 		return nil, err
 	}
 
+	tz, err := time.LoadLocation(result.TimeZone)
+	if err != nil {
+		return nil, err
+	}
+	time.Local = tz
+
 	for _, item := range result.Items {
 		event := &firestore.Event{
 			Title:                 item.Summary,
@@ -41,12 +47,12 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 
 		startTime := time.Time{}
 		if item.Start.DateTime == "" {
-			startTime, err = time.Parse("2006-01-02", item.Start.Date)
+			startTime, err = time.ParseInLocation("2006-01-02", item.Start.Date, tz)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			startTime, err = time.Parse(time.RFC3339, item.Start.DateTime)
+			startTime, err = time.ParseInLocation(time.RFC3339, item.Start.DateTime, tz)
 			if err != nil {
 				return nil, err
 			}
@@ -69,4 +75,29 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 		events = append(events, event)
 	}
 	return events, nil
+}
+
+func InsertEvent(service *calendar.Service, calendarID string, event *firestore.Event) (string, error) {
+	e := &calendar.Event{
+		Summary: event.Title,
+		Description: event.Description,
+		Start: &calendar.EventDateTime{
+			DateTime: event.StartTime.Format(time.RFC3339),
+		},
+		End: &calendar.EventDateTime{
+			DateTime: event.EndTime.Format(time.RFC3339),
+		},
+		ExtendedProperties: &calendar.EventExtendedProperties{
+			Private: map[string]string{
+				"uuid": event.UUID,
+			},
+		},
+		ColorId: firestore.ColorMap[event.Color],
+	}
+
+	result, err := service.Events.Insert(calendarID, e).Do()
+	if err != nil {
+		return "", err
+	}
+	return result.Id, nil
 }
