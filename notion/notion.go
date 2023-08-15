@@ -78,16 +78,23 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 					}
 				case "date":
 					event.StartTime = prop.Date.Start.Time
-					if !prop.Date.Start.HasTime() {
+					if !prop.Date.Start.HasTime() { // All day
 						st := event.StartTime
 						event.StartTime = time.Date(st.Year(), st.Month(), st.Day(), 0, 0, 0, 0, loc)
 						event.IsAllday = true
 					}
 					if prop.Date.End != nil {
 						event.EndTime = prop.Date.End.Time
-						if !prop.Date.End.HasTime() {
+						if !prop.Date.End.HasTime() { // All day (more than 2 days)
 							et := event.EndTime
-							event.EndTime = time.Date(et.Year(), et.Month(), et.Day(), 0, 0, 0, 0, loc)
+							event.EndTime = time.Date(et.Year(), et.Month(), et.Day(), 0, 0, 0, 0, loc).Add(24 * time.Hour)
+						}
+					} else {
+						if event.IsAllday { // All day (1 day)
+							event.EndTime = event.StartTime.Add(24 * time.Hour)
+						} else {
+							// If no end time is specified and it is not an all day event, set the duration to 1 hour
+							event.EndTime = event.StartTime.Add(time.Hour)
 						}
 					}
 					// if prop.Date.TimeZone != nil {
