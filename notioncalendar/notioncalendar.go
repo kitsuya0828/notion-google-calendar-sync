@@ -2,7 +2,7 @@ package notioncalendar
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
@@ -53,9 +53,11 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 			for key, prop := range props {
 				switch pt := prop.Type; pt {
 				case "title":
+					titles := make([]string, len(prop.Title))
 					for _, rt := range prop.Title {
-						event.Title += fmt.Sprintln(rt.PlainText)
+						titles = append(titles, rt.PlainText)
 					}
+					event.Title = strings.Join(titles, "\n")
 				case "multi_select":
 					for _, o := range prop.MultiSelect {
 						event.Color = string(o.Color)
@@ -66,13 +68,17 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 				case "last_edited_time":
 					event.UpdatedTime = *prop.LastEditedTime
 				case "rich_text":
+					descriptions := make([]string, len(prop.RichText))
 					for _, rt := range prop.RichText {
 						if key == "UUID" {
 							event.UUID = rt.PlainText
 							break
 						} else {
-							event.Description += fmt.Sprintln(rt.PlainText)
+							descriptions = append(descriptions, rt.PlainText)
 						}
+					}
+					if len(descriptions) > 0 {
+						event.Description = strings.Join(descriptions, "\n")
 					}
 				case "date":
 					event.StartTime = prop.Date.Start.Time
@@ -152,6 +158,15 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 			"Date": notion.DatabasePageProperty{
 				Date: date,
 			},
+			"UUID": notion.DatabasePageProperty{
+				RichText: []notion.RichText{
+					{
+						Text: &notion.Text{
+							Content: event.UUID,
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -160,4 +175,61 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 		return "", err
 	}
 	return page.ID, nil
+}
+
+func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) error {
+	date := &notion.Date{
+		Start: notion.NewDateTime(event.StartTime, !event.IsAllday),
+	}
+
+	if event.IsAllday { // All day event
+		endTime := notion.NewDateTime(event.EndTime.AddDate(0, 0, -1), false)
+		if date.Start != endTime { // All day event (more than 2 days)
+			date.End = &endTime
+		}
+	} else {
+		endTime := notion.NewDateTime(event.EndTime, true)
+		date.End = &endTime
+	}
+
+	params := notion.UpdatePageParams{
+		DatabasePageProperties: notion.DatabasePageProperties{
+			"title": notion.DatabasePageProperty{
+				Title: []notion.RichText{
+					{
+						Text: &notion.Text{
+							Content: event.Title,
+						},
+					},
+				},
+			},
+			"説明": notion.DatabasePageProperty{
+				RichText: []notion.RichText{
+					{
+						Text: &notion.Text{
+							Content: event.Description,
+						},
+					},
+				},
+			},
+			"Date": notion.DatabasePageProperty{
+				Date: date,
+			},
+			"UUID": notion.DatabasePageProperty{
+				RichText: []notion.RichText{
+					{
+						Text: &notion.Text{
+							Content: event.UUID,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := client.UpdatePage(ctx, event.NotionEventID, params)
+	if err != nil {
+		return err
+	}
+	return nil
 }

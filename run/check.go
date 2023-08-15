@@ -30,18 +30,26 @@ func checkAdd(
 			}
 			event.UUID = uuid.String()
 
-			if event.NotionEventID == "" { // New Google Calendar event
+			if event.NotionEventID == "" { // Not yet added to Notion
 				notionEventID, err := notioncalendar.CreateEvent(ctx, notionClient, cfg.NotionDatabaseID, event)
 				if err != nil {
 					return err
 				}
 				event.NotionEventID = notionEventID
-			} else if event.GoogleCalendarEventID == "" { // New Notion event
+				err = googlecalendar.UpdateEvent(googleCalendarService, cfg.GoogleCalendarID, event)
+				if err != nil {
+					return err
+				}
+			} else if event.GoogleCalendarEventID == "" { // // Not yet added to Google Calendar
 				googleCalendarEventID, err := googlecalendar.InsertEvent(googleCalendarService, cfg.GoogleCalendarID, event)
 				if err != nil {
 					return err
 				}
 				event.GoogleCalendarEventID = googleCalendarEventID
+				err = notioncalendar.UpdateEvent(ctx, notionClient, event)
+				if err != nil {
+					return err
+				}
 			}
 
 			err = db.AddEvent(ctx, firestoreClient, event)
