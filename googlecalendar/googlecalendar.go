@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
@@ -13,8 +13,8 @@ func NewService(ctx context.Context) (*calendar.Service, error) {
 	return calendar.NewService(ctx, option.WithCredentialsFile("credentials.json"))
 }
 
-func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Event, error) {
-	events := []*firestore.Event{}
+func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, error) {
+	events := []*db.Event{}
 	result, err := service.Events.List(calendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 	time.Local = tz
 
 	for _, item := range result.Items {
-		event := &firestore.Event{
+		event := &db.Event{
 			Title:                 item.Summary,
 			GoogleCalendarEventID: item.Id,
 			Description:           item.Description,
@@ -78,22 +78,33 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 	return events, nil
 }
 
-func InsertEvent(service *calendar.Service, calendarID string, event *firestore.Event) (string, error) {
+func InsertEvent(service *calendar.Service, calendarID string, event *db.Event) (string, error) {
+	startDateTime := &calendar.EventDateTime{
+		DateTime: event.StartTime.Format(time.RFC3339),
+	}
+	endDateTime := &calendar.EventDateTime{
+		DateTime: event.EndTime.Format(time.RFC3339),
+	}
+	if event.IsAllday {
+		startDateTime = &calendar.EventDateTime{
+			Date: event.StartTime.Format("2006-01-02"),
+		}
+		endDateTime = &calendar.EventDateTime{
+			Date: event.EndTime.Format("2006-01-02"),
+		}
+	}
+
 	e := &calendar.Event{
-		Summary: event.Title,
+		Summary:     event.Title,
 		Description: event.Description,
-		Start: &calendar.EventDateTime{
-			DateTime: event.StartTime.Format(time.RFC3339),
-		},
-		End: &calendar.EventDateTime{
-			DateTime: event.EndTime.Format(time.RFC3339),
-		},
+		Start:       startDateTime,
+		End:         endDateTime,
 		ExtendedProperties: &calendar.EventExtendedProperties{
 			Private: map[string]string{
 				"uuid": event.UUID,
 			},
 		},
-		ColorId: firestore.ColorMap[event.Color],
+		ColorId: db.ColorMap[event.Color],
 	}
 
 	result, err := service.Events.Insert(calendarID, e).Do()

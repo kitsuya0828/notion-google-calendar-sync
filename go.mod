@@ -7,7 +7,6 @@ require (
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/dstotijn/go-notion v0.11.0
 	github.com/google/uuid v1.3.0
-	github.com/jomei/notionapi v1.12.7
 )
 
 require (
@@ -38,7 +37,4 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 )
 
-require (
-	github.com/pkg/errors v0.9.1 // indirect
-	google.golang.org/api v0.136.0
-)
+require google.golang.org/api v0.136.0

@@ -1,14 +1,12 @@
-package notion
+package notioncalendar
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
+	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"github.com/dstotijn/go-notion"
-	"github.com/jomei/notionapi"
 )
 
 func NewClient(token string) *notion.Client {
@@ -16,7 +14,7 @@ func NewClient(token string) *notion.Client {
 	return client
 }
 
-func ListEvents(ctx context.Context, client *notion.Client, databaseID string, tz string) ([]*firestore.Event, error) {
+func ListEvents(ctx context.Context, client *notion.Client, databaseID string, tz string) ([]*db.Event, error) {
 	now := time.Now()
 	req := &notion.DatabaseQuery{
 		Filter: &notion.DatabaseQueryFilter{
@@ -29,7 +27,7 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 		},
 	}
 
-	events := []*firestore.Event{}
+	events := []*db.Event{}
 
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
@@ -45,7 +43,7 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 		result := response.Results
 
 		for _, page := range result {
-			event := &firestore.Event{NotionEventID: page.ID}
+			event := &db.Event{NotionEventID: page.ID}
 
 			props, ok := page.Properties.(notion.DatabasePageProperties)
 			if !ok {
@@ -87,11 +85,11 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 						event.EndTime = prop.Date.End.Time
 						if !prop.Date.End.HasTime() { // All day (more than 2 days)
 							et := event.EndTime
-							event.EndTime = time.Date(et.Year(), et.Month(), et.Day(), 0, 0, 0, 0, loc).Add(24 * time.Hour)
+							event.EndTime = time.Date(et.Year(), et.Month(), et.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, 1)
 						}
 					} else {
 						if event.IsAllday { // All day (1 day)
-							event.EndTime = event.StartTime.Add(24 * time.Hour)
+							event.EndTime = event.StartTime.AddDate(0, 0, 1)
 						} else {
 							// If no end time is specified and it is not an all day event, set the duration to 1 hour
 							event.EndTime = event.StartTime.Add(time.Hour)
@@ -100,8 +98,6 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 					// if prop.Date.TimeZone != nil {
 					// 	fmt.Println(prop.Date.TimeZone)
 					// }
-				default:
-					log.Printf("property is not supported: %s\n", pt)
 				}
 			}
 			events = append(events, event)
@@ -116,50 +112,52 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 	return events, nil
 }
 
-func CreateEvent(ctx context.Context, client *notionapi.Client, databaseID string, event *firestore.Event) (string, error) {
-	startTime := notionapi.Date(event.StartTime)
-	endTime := notionapi.Date(event.EndTime)
-	// This SDK cannot handle all day events
-	if event.EndTime.Hour() == 0 && event.EndTime.Minute() == 0 { // For convenience of Notion display
-		endTime = notionapi.Date(event.EndTime.Add(-time.Second))
-	}
-	date := &notionapi.DateObject{
-		Start: &startTime,
-		End:   &endTime,
+func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, event *db.Event) (string, error) {
+	date := &notion.Date{
+		Start: notion.NewDateTime(event.StartTime, !event.IsAllday),
 	}
 
-	req := &notionapi.PageCreateRequest{
-		Parent: notionapi.Parent{
-			Type:       "database_id",
-			DatabaseID: notionapi.DatabaseID(databaseID),
-		},
-		Properties: notionapi.Properties{
-			"title": &notionapi.TitleProperty{
-				Title: []notionapi.RichText{
+	if event.IsAllday { // All day event
+		endTime := notion.NewDateTime(event.EndTime.AddDate(0, 0, -1), false)
+		if date.Start != endTime { // All day event (more than 2 days)
+			date.End = &endTime
+		}
+	} else {
+		endTime := notion.NewDateTime(event.EndTime, true)
+		date.End = &endTime
+	}
+
+	params := notion.CreatePageParams{
+		ParentType: notion.ParentTypeDatabase,
+		ParentID:   databaseID,
+		DatabasePageProperties: &notion.DatabasePageProperties{
+			"title": notion.DatabasePageProperty{
+				Title: []notion.RichText{
 					{
-						Text: &notionapi.Text{
+						Text: &notion.Text{
 							Content: event.Title,
 						},
 					},
 				},
 			},
-			"説明": &notionapi.RichTextProperty{
-				RichText: []notionapi.RichText{
+			"説明": notion.DatabasePageProperty{
+				RichText: []notion.RichText{
 					{
-						Text: &notionapi.Text{
+						Text: &notion.Text{
 							Content: event.Description,
 						},
 					},
 				},
 			},
-			"Date": &notionapi.DateProperty{
+			"Date": notion.DatabasePageProperty{
 				Date: date,
 			},
 		},
 	}
-	response, err := client.Page.Create(ctx, req)
+
+	page, err := client.CreatePage(ctx, params)
 	if err != nil {
 		return "", err
 	}
-	return response.ID.String(), nil
+	return page.ID, nil
 }
