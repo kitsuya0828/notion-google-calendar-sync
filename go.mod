@@ -5,6 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/firestore v1.12.0
 	github.com/caarlos0/env/v9 v9.0.0
+	github.com/dstotijn/go-notion v0.11.0
 	github.com/google/uuid v1.3.0
 	github.com/jomei/notionapi v1.12.7
 )

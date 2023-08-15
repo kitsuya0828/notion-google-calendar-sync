@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
@@ -11,10 +12,11 @@ import (
 )
 
 type Config struct {
-	NotionToken      string `env:"NOTION_TOKEN,notEmpty"`
-	NotionDatabaseID string `env:"NOTION_DATABASE_ID,notEmpty"`
-	GoogleCalendarID string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
-	ProjectID        string `env:"PROJECT_ID,notEmpty"`
+	NotionToken           string `env:"NOTION_TOKEN,notEmpty"`
+	NotionDefaultTimeZone string `env:"NOTION_DEFAULT_TIMEZONE,notEmpty"`
+	NotionDatabaseID      string `env:"NOTION_DATABASE_ID,notEmpty"`
+	GoogleCalendarID      string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
+	ProjectID             string `env:"PROJECT_ID,notEmpty"`
 }
 
 func Run() {
@@ -28,7 +30,7 @@ func Run() {
 
 	// Get future events in Notion database
 	notionClient := notion.NewClient(cfg.NotionToken)
-	notionEvents, err := notion.ListEvents(ctx, notionClient, cfg.NotionDatabaseID)
+	notionEvents, err := notion.ListEvents(ctx, notionClient, cfg.NotionDatabaseID, cfg.NotionDefaultTimeZone)
 	if err != nil {
 		log.Fatalf("failed to get events from Notion: %v\n", err)
 	}
@@ -47,20 +49,18 @@ func Run() {
 	firestoreClient := firestore.CreateClient(ctx, cfg.ProjectID)
 	defer firestoreClient.Close()
 
-	for _, event := range googleCalendarEvents {
-		firestore.AddEvent(ctx, firestoreClient, event)
-	}
-
 	// Check if new events have been added
-	err = checkAdd(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// err = checkAdd(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	// for _, event := range notionEvents {
-	// 	firestore.AddEvent(ctx, client, event)
-	// }
-	// for _, event := range googleCalendarEvents {
-	// 	firestore.AddEvent(ctx, client, event)
-	// }
+	for _, event := range notionEvents {
+		// firestore.AddEvent(ctx, client, event)
+		fmt.Println(event)
+	}
+	for _, event := range googleCalendarEvents {
+		// firestore.AddEvent(ctx, client, event)
+		fmt.Println(event)
+	}
 }

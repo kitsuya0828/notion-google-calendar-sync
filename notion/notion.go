@@ -7,90 +7,92 @@ import (
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/firestore"
+	"github.com/dstotijn/go-notion"
 	"github.com/jomei/notionapi"
 )
 
-func NewClient(token string) *notionapi.Client {
-	client := notionapi.NewClient(notionapi.Token(token))
+func NewClient(token string) *notion.Client {
+	client := notion.NewClient(token)
 	return client
 }
 
-func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string) ([]*firestore.Event, error) {
-	now := notionapi.Date(time.Now())
-	req := &notionapi.DatabaseQueryRequest{
-		Filter: &notionapi.PropertyFilter{
+func ListEvents(ctx context.Context, client *notion.Client, databaseID string, tz string) ([]*firestore.Event, error) {
+	now := time.Now()
+	req := &notion.DatabaseQuery{
+		Filter: &notion.DatabaseQueryFilter{
 			Property: "Date",
-			Date: &notionapi.DateFilterCondition{
-				After: &now,
+			DatabaseQueryPropertyFilter: notion.DatabaseQueryPropertyFilter{
+				Date: &notion.DatePropertyFilter{
+					After: &now,
+				},
 			},
 		},
 	}
+
 	events := []*firestore.Event{}
 
-	jst, err := time.LoadLocation("Asia/Tokyo")
+	loc, err := time.LoadLocation(tz)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	time.Local = jst
+	time.Local = loc
 
 	for {
-		response, err := client.Database.Query(ctx, notionapi.DatabaseID(databaseID), req)
+		response, err := client.QueryDatabase(ctx, databaseID, req)
 		if err != nil {
 			return nil, err
 		}
+		result := response.Results
 
-		for _, r := range response.Results {
-			event := &firestore.Event{NotionEventID: r.ID.String()}
-			for label, property := range r.Properties {
-				switch pt := property.GetType(); pt {
+		for _, page := range result {
+			event := &firestore.Event{NotionEventID: page.ID}
+
+			props, ok := page.Properties.(notion.DatabasePageProperties)
+			if !ok {
+				continue
+			}
+
+			for key, prop := range props {
+				switch pt := prop.Type; pt {
 				case "title":
-					prop, ok := property.(*notionapi.TitleProperty)
-					if ok {
-						for _, t := range prop.Title {
-							event.Title = t.PlainText
-						}
+					for _, rt := range prop.Title {
+						event.Title += fmt.Sprintln(rt.PlainText)
 					}
 				case "multi_select":
-					prop, ok := property.(*notionapi.MultiSelectProperty)
-					if ok {
-						for _, o := range prop.MultiSelect {
-							event.Color = o.Color.String()
-							break
-						}
+					for _, o := range prop.MultiSelect {
+						event.Color = string(o.Color)
+						break
 					}
 				case "created_time":
-					prop, ok := property.(*notionapi.CreatedTimeProperty)
-					if ok {
-						event.CreatedTime = prop.CreatedTime
-					}
+					event.CreatedTime = *prop.CreatedTime
 				case "last_edited_time":
-					prop, ok := property.(*notionapi.LastEditedTimeProperty)
-					if ok {
-						event.UpdatedTime = prop.LastEditedTime
-					}
+					event.UpdatedTime = *prop.LastEditedTime
 				case "rich_text":
-					prop, ok := property.(*notionapi.RichTextProperty)
-					if ok {
-						for _, rt := range prop.RichText {
-							if label == "UUID" {
-								event.UUID = rt.Text.Content
-								break
-							} else {
-								event.Description += fmt.Sprintln(rt.Text.Content)
-							}
+					for _, rt := range prop.RichText {
+						if key == "UUID" {
+							event.UUID = rt.PlainText
+							break
+						} else {
+							event.Description += fmt.Sprintln(rt.PlainText)
 						}
 					}
 				case "date":
-					prop, ok := property.(*notionapi.DateProperty)
-					if ok {
-						fmt.Println(prop)
-						event.StartTime = time.Time(*prop.Date.Start)
-						if prop.Date.End != nil {
-							event.EndTime = time.Time(*prop.Date.End)
-						} else {
-							event.EndTime = event.StartTime.Add(24 * time.Hour)
+					event.StartTime = prop.Date.Start.Time
+					if !prop.Date.Start.HasTime() {
+						st := event.StartTime
+						event.StartTime = time.Date(st.Year(), st.Month(), st.Day(), 0, 0, 0, 0, loc)
+						event.IsAllday = true
+					}
+					if prop.Date.End != nil {
+						event.EndTime = prop.Date.End.Time
+						if !prop.Date.End.HasTime() {
+							et := event.EndTime
+							event.EndTime = time.Date(et.Year(), et.Month(), et.Day(), 0, 0, 0, 0, loc)
 						}
 					}
+					// if prop.Date.TimeZone != nil {
+					// 	fmt.Println(prop.Date.TimeZone)
+					// }
 				default:
 					log.Printf("property is not supported: %s\n", pt)
 				}
@@ -99,7 +101,7 @@ func ListEvents(ctx context.Context, client *notionapi.Client, databaseID string
 		}
 
 		if response.HasMore {
-			req.StartCursor = response.NextCursor
+			req.StartCursor = *response.NextCursor
 		} else {
 			break
 		}
@@ -111,18 +113,17 @@ func CreateEvent(ctx context.Context, client *notionapi.Client, databaseID strin
 	startTime := notionapi.Date(event.StartTime)
 	endTime := notionapi.Date(event.EndTime)
 	// This SDK cannot handle all day events
-	if event.EndTime.Hour() == 0 && event.EndTime.Minute() == 0 {	// For convenience of Notion display
-		endTime = notionapi.Date(event.EndTime.Add(- time.Second))
+	if event.EndTime.Hour() == 0 && event.EndTime.Minute() == 0 { // For convenience of Notion display
+		endTime = notionapi.Date(event.EndTime.Add(-time.Second))
 	}
 	date := &notionapi.DateObject{
 		Start: &startTime,
-		End: &endTime,
+		End:   &endTime,
 	}
-
 
 	req := &notionapi.PageCreateRequest{
 		Parent: notionapi.Parent{
-			Type: "database_id",
+			Type:       "database_id",
 			DatabaseID: notionapi.DatabaseID(databaseID),
 		},
 		Properties: notionapi.Properties{
@@ -153,5 +154,5 @@ func CreateEvent(ctx context.Context, client *notionapi.Client, databaseID strin
 	if err != nil {
 		return "", err
 	}
-	return response.ID.String() ,nil
+	return response.ID.String(), nil
 }

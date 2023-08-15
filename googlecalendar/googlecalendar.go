@@ -51,8 +51,9 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 			if err != nil {
 				return nil, err
 			}
+			event.IsAllday = true
 		} else {
-			startTime, err = time.ParseInLocation(time.RFC3339, item.Start.DateTime, tz)
+			startTime, err = time.Parse(time.RFC3339, item.Start.DateTime)
 			if err != nil {
 				return nil, err
 			}
@@ -61,7 +62,7 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*firestore.Even
 
 		endTime := time.Time{}
 		if item.End.DateTime == "" {
-			endTime, err = time.Parse("2006-01-02", item.End.Date)
+			endTime, err = time.ParseInLocation("2006-01-02", item.End.Date, tz)
 			if err != nil {
 				return nil, err
 			}

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func checkAdd(
 	ctx context.Context,
 	cfg Config,
@@ -30,14 +31,14 @@ func checkAdd(
 			}
 			event.UUID = uuid.String()
 
-			if event.NotionEventID == "" {	// New Google Calendar event 
+			if event.NotionEventID == "" { // New Google Calendar event
 				notionEventID, err := notion.CreateEvent(ctx, notionClient, cfg.NotionDatabaseID, event)
 				if err != nil {
 					return err
 				}
 				event.NotionEventID = notionEventID
 
-			} else if event.GoogleCalendarEventID == "" {	// New Notion event
+			} else if event.GoogleCalendarEventID == "" { // New Notion event
 				googleCalendarEventID, err := googlecalendar.InsertEvent(googleCalendarService, cfg.GoogleCalendarID, event)
 				if err != nil {
 					return err
