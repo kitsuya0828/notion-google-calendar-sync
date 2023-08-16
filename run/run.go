@@ -54,6 +54,12 @@ func Run() {
 		log.Fatal(err)
 	}
 
+	// Check if events have been updated
+	err = checkUpdate(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// for _, event := range notionEvents {
 	// 	// firestore.AddEvent(ctx, client, event)
 	// 	fmt.Println(event)

@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"fmt"
 
 	"cloud.google.com/go/firestore"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
@@ -57,6 +58,25 @@ func checkAdd(
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func checkUpdate(
+	ctx context.Context,
+	cfg Config,
+	notionClient *notion.Client,
+	googleCalendarService *calendar.Service,
+	notionEvents []*db.Event,
+	googleCalendarEvents []*db.Event,
+	firestoreClient *firestore.Client,
+) error {
+	events, err := db.ListEvents(ctx, firestoreClient)
+	if err != nil {
+		return err
+	}
+	for _, event := range events {
+		fmt.Println(event)
 	}
 	return nil
 }

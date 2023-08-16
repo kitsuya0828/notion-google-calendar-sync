@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -50,4 +51,27 @@ func DeleteEvent(ctx context.Context, client *firestore.Client, event *Event) er
 		return err
 	}
 	return nil
+}
+
+func ListEvents(ctx context.Context, client *firestore.Client) ([]*Event, error) {
+	iter := client.Collection(collectionID).Documents(ctx)
+	events := []*Event{}
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// fmt.Println(doc.Data())
+
+		var event Event
+		err = doc.DataTo(&event)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, &event)
+	}
+	return events, nil
 }
