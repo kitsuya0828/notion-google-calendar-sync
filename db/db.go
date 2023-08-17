@@ -37,7 +37,7 @@ func AddEvent(ctx context.Context, client *firestore.Client, event *Event) error
 	return nil
 }
 
-func UpdateEvent(ctx context.Context, client *firestore.Client, event *Event) error {
+func SetEvent(ctx context.Context, client *firestore.Client, event *Event) error {
 	_, err := client.Collection(collectionID).Doc(event.UUID).Set(ctx, event)
 	if err != nil {
 		return err

@@ -76,7 +76,50 @@ func checkUpdate(
 		return err
 	}
 	for _, event := range events {
-		fmt.Println(event)
+		isNotionDeleted := false
+		notionEventsIDMap := getEventsIDMap(notionEvents)
+		// Check if the event has been deleted on Notion
+		notionEvent, ok := notionEventsIDMap[event.UUID]
+		if !ok {
+			isNotionDeleted = true
+		}
+
+		isGoogleCalendarDeleted := false
+		googleCalendarEventsIDMap := getEventsIDMap(googleCalendarEvents)
+		// Check if the event has been deleted on Google Calendar
+		googelCalendarEvent, ok := googleCalendarEventsIDMap[event.UUID]
+		if !ok {
+			isGoogleCalendarDeleted = true
+		}
+
+		// If the event is deleted either on Notion or Google Calendar
+		if isNotionDeleted && !isGoogleCalendarDeleted {
+			fmt.Println() // TODO:
+			continue
+		} else if !isNotionDeleted && isGoogleCalendarDeleted {
+			fmt.Println() // TODO:
+			continue
+		}
+
+		correctEvent, isNotionUpdated, isGoogleCalendarUpdated := getCorrectEvent(event, notionEvent, googelCalendarEvent)
+		if isNotionUpdated || isGoogleCalendarUpdated {
+			err := db.SetEvent(ctx, firestoreClient, correctEvent)
+			if err != nil {
+				return err
+			}
+			if isNotionUpdated {
+				err := googlecalendar.UpdateEvent(googleCalendarService, cfg.GoogleCalendarID, correctEvent)
+				if err != nil {
+					return err
+				}
+			}
+			if isGoogleCalendarUpdated {
+				err := notioncalendar.UpdateEvent(ctx, notionClient, correctEvent)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

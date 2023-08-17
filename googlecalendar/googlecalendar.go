@@ -2,6 +2,7 @@ package googlecalendar
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
@@ -81,6 +82,13 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 			}
 		}
 
+		for k, v := range db.ColorMap {
+			if v == item.ColorId {
+				event.Color = k
+				break
+			}
+		}
+
 		events = append(events, event)
 	}
 	return events, nil
@@ -148,12 +156,15 @@ func UpdateEvent(service *calendar.Service, calendarID string, event *db.Event) 
 				"uuid": event.UUID,
 			},
 		},
-		ColorId: db.ColorMap[event.Color],
+	}
+	if event.Color != "" {
+		e.ColorId = db.ColorMap[event.Color]
 	}
 
-	_, err := service.Events.Update(calendarID, event.GoogleCalendarEventID, e).Do()
+	result, err := service.Events.Update(calendarID, event.GoogleCalendarEventID, e).Do()
 	if err != nil {
 		return err
 	}
+	log.Println("gc updated: ", result)
 	return nil
 }

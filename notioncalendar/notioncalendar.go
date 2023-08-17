@@ -2,6 +2,7 @@ package notioncalendar
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -53,9 +54,9 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 			for key, prop := range props {
 				switch pt := prop.Type; pt {
 				case "title":
-					titles := make([]string, len(prop.Title))
+					titles := []string{}
 					for _, rt := range prop.Title {
-						titles = append(titles, rt.PlainText)
+						titles = append(titles, rt.Text.Content)
 					}
 					event.Title = strings.Join(titles, "\n")
 				case "multi_select":
@@ -68,13 +69,13 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 				case "last_edited_time":
 					event.UpdatedTime = *prop.LastEditedTime
 				case "rich_text":
-					descriptions := make([]string, len(prop.RichText))
+					descriptions := []string{}
 					for _, rt := range prop.RichText {
 						if key == "UUID" {
-							event.UUID = rt.PlainText
+							event.UUID = rt.Text.Content
 							break
 						} else {
-							descriptions = append(descriptions, rt.PlainText)
+							descriptions = append(descriptions, rt.Text.Content)
 						}
 					}
 					if len(descriptions) > 0 {
@@ -227,9 +228,10 @@ func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) er
 		},
 	}
 
-	_, err := client.UpdatePage(ctx, event.NotionEventID, params)
+	result, err := client.UpdatePage(ctx, event.NotionEventID, params)
 	if err != nil {
 		return err
 	}
+	log.Println("n updated: ", result)
 	return nil
 }
