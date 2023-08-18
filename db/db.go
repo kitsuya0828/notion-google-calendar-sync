@@ -7,7 +7,6 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 const (
@@ -15,7 +14,7 @@ const (
 )
 
 func CreateClient(ctx context.Context, projectID string) *firestore.Client {
-	client, err := firestore.NewClient(ctx, projectID, option.WithCredentialsFile("credentials.json"))
+	client, err := firestore.NewClient(ctx, projectID)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}

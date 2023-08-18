@@ -7,11 +7,10 @@ import (
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
 )
 
 func NewService(ctx context.Context) (*calendar.Service, error) {
-	return calendar.NewService(ctx, option.WithCredentialsFile("credentials.json"))
+	return calendar.NewService(ctx)
 }
 
 func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, error) {
