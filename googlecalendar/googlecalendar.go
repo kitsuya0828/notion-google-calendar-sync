@@ -168,3 +168,8 @@ func UpdateEvent(service *calendar.Service, calendarID string, event *db.Event) 
 	log.Println("gc updated: ", result)
 	return nil
 }
+
+func DeleteEvent(service *calendar.Service, calendarID string, event *db.Event) error {
+	err := service.Events.Delete(calendarID, event.GoogleCalendarEventID).Do()
+	return err
+}

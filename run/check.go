@@ -2,7 +2,6 @@ package run
 
 import (
 	"context"
-	"fmt"
 
 	"cloud.google.com/go/firestore"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
@@ -93,11 +92,26 @@ func checkUpdate(
 		}
 
 		// If the event is deleted either on Notion or Google Calendar
+		// TODO: Maintain consistency of events
 		if isNotionDeleted && !isGoogleCalendarDeleted {
-			fmt.Println() // TODO:
+			err := googlecalendar.DeleteEvent(googleCalendarService, cfg.GoogleCalendarID, event)
+			if err != nil {
+				return err
+			}
+			err = db.DeleteEvent(ctx, firestoreClient, event)
+			if err != nil {
+				return err
+			}
 			continue
 		} else if !isNotionDeleted && isGoogleCalendarDeleted {
-			fmt.Println() // TODO:
+			err := notioncalendar.DeleteEvent(ctx, notionClient, event)
+			if err != nil {
+				return err
+			}
+			err = db.DeleteEvent(ctx, firestoreClient, event)
+			if err != nil {
+				return err
+			}
 			continue
 		}
 

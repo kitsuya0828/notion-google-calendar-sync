@@ -235,3 +235,16 @@ func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) er
 	log.Println("n updated: ", result)
 	return nil
 }
+
+func DeleteEvent(ctx context.Context, client *notion.Client, event *db.Event) error {
+	archived := true
+	params := notion.UpdatePageParams{
+		Archived: &archived,
+	}
+	result, err := client.UpdatePage(ctx, event.NotionEventID, params)
+	if err != nil {
+		return err
+	}
+	log.Println("n deleted: ", result)
+	return nil
+}
