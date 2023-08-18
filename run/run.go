@@ -54,6 +54,15 @@ func Run() {
 		log.Fatal(err)
 	}
 
+	notionEvents, err = notioncalendar.ListEvents(ctx, notionClient, cfg.NotionDatabaseID, cfg.NotionDefaultTimeZone)
+	if err != nil {
+		log.Fatalf("failed to re-get events from Notion: %v\n", err)
+	}
+	googleCalendarEvents, err = googlecalendar.ListEvents(googleCalendarService, cfg.GoogleCalendarID)
+	if err != nil {
+		log.Fatalf("failed to re-get events from Google Calendar: %v\n", err)
+	}
+
 	// Check if events have been updated
 	err = checkUpdate(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
 	if err != nil {

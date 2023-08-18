@@ -30,10 +30,11 @@ func AddEvent(ctx context.Context, client *firestore.Client, event *Event) error
 		return fmt.Errorf("no UUID is set for the event: %v", event)
 	}
 
-	_, err := client.Collection(collectionID).Doc(uuid).Create(ctx, event)
+	result, err := client.Collection(collectionID).Doc(uuid).Create(ctx, event)
 	if err != nil {
 		return err
 	}
+	log.Println("db add: ", result)
 	return nil
 }
 

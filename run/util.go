@@ -20,7 +20,9 @@ func updateEventField(dbEvent *db.Event, partiallyUpdatedEvent *db.Event) *db.Ev
 	updatedEvent := dbEvent
 
 	updatedEvent.Title = partiallyUpdatedEvent.Title
-	updatedEvent.Color = partiallyUpdatedEvent.Color
+	if partiallyUpdatedEvent.NotionEventID != "" {
+		updatedEvent.Color = partiallyUpdatedEvent.Color
+	}
 	updatedEvent.StartTime = partiallyUpdatedEvent.StartTime
 	updatedEvent.EndTime = partiallyUpdatedEvent.EndTime
 	updatedEvent.IsAllday = partiallyUpdatedEvent.IsAllday
@@ -32,19 +34,23 @@ func updateEventField(dbEvent *db.Event, partiallyUpdatedEvent *db.Event) *db.Ev
 func getCorrectEvent(dbEvent *db.Event, notionEvent *db.Event, googleCalendarEvent *db.Event) (*db.Event, bool, bool) {
 	correctEvent := dbEvent
 
-	opts := []cmp.Option{
+	notionOpts := []cmp.Option{
 		cmpopts.IgnoreFields(db.Event{}, "CreatedTime", "UpdatedTime", "NotionEventID", "GoogleCalendarEventID"),
 	}
 
 	isNotionUpdated := false
-	diff := cmp.Diff(dbEvent, notionEvent, opts...)
+	diff := cmp.Diff(dbEvent, notionEvent, notionOpts...)
 	if diff != "" {
 		isNotionUpdated = true
 		log.Println(diff)
 	}
 
+	googleCalendarOpts := []cmp.Option{
+		cmpopts.IgnoreFields(db.Event{}, "Color", "CreatedTime", "UpdatedTime", "NotionEventID", "GoogleCalendarEventID"),
+	}
+
 	isGoogleCalendarUpdated := false
-	diff = cmp.Diff(dbEvent, googleCalendarEvent, opts...)
+	diff = cmp.Diff(dbEvent, googleCalendarEvent, googleCalendarOpts...)
 	if diff != "" {
 		isGoogleCalendarUpdated = true
 		log.Println(diff)
