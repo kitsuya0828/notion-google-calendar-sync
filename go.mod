@@ -46,5 +46,6 @@ require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.7.4
 	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/google/go-cmp v0.5.9
+	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	google.golang.org/api v0.136.0
 )

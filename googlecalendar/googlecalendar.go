@@ -2,10 +2,12 @@ package googlecalendar
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"golang.org/x/exp/slog"
 	"google.golang.org/api/calendar/v3"
 )
 
@@ -13,16 +15,16 @@ func NewService(ctx context.Context) (*calendar.Service, error) {
 	return calendar.NewService(ctx)
 }
 
-func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, error) {
+func ListEvents(logger *slog.Logger, service *calendar.Service, calendarID string) ([]*db.Event, error) {
 	events := []*db.Event{}
 	result, err := service.Events.List(calendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("execute calendar.events.list call: %v", err)
 	}
 
 	tz, err := time.LoadLocation(result.TimeZone)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load location: %v", err)
 	}
 	time.Local = tz
 
@@ -32,16 +34,17 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 			GoogleCalendarEventID: item.Id,
 			Description:           item.Description,
 		}
+		logger.Debug("parse item", "item", item)
 
 		createdTime, err := time.Parse(time.RFC3339, item.Created)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse created time: %v", err)
 		}
 		event.CreatedTime = createdTime
 
 		updatedTime, err := time.Parse(time.RFC3339, item.Updated)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse updated time: %v", err)
 		}
 		event.UpdatedTime = updatedTime
 
@@ -49,13 +52,13 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 		if item.Start.DateTime == "" {
 			startTime, err = time.ParseInLocation("2006-01-02", item.Start.Date, tz)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parse start time: %v", err)
 			}
 			event.IsAllday = true
 		} else {
 			startTime, err = time.Parse(time.RFC3339, item.Start.DateTime)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parse start time: %v", err)
 			}
 		}
 		event.StartTime = startTime
@@ -64,12 +67,12 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 		if item.End.DateTime == "" {
 			endTime, err = time.ParseInLocation("2006-01-02", item.End.Date, tz)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parse end time: %v", err)
 			}
 		} else {
 			endTime, err = time.Parse(time.RFC3339, item.End.DateTime)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parse end time: %v", err)
 			}
 		}
 		event.EndTime = endTime
@@ -87,9 +90,9 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 				break
 			}
 		}
-
 		events = append(events, event)
 	}
+	logger.Info("count number of google calendar events", "num", len(events))
 	return events, nil
 }
 
