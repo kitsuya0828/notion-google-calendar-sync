@@ -4,10 +4,10 @@
 
 
 ## Run locally
-[サービス アカウントとして認証する  \|  Google Cloud](https://cloud.google.com/docs/authentication/production?hl=ja)
+https://cloud.google.com/docs/authentication/production?hl=ja
+
 ```bash
 gcloud auth application-default login --impersonate-service-account xxxx-compute@developer.gserviceaccount.com
 source .env
-cd cmd
-go run main.go
+go run cmd/main.go
 ```

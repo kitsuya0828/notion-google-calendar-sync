@@ -14,8 +14,9 @@ func main() {
 		Level: slog.LevelDebug,
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, opt))
+	slog.SetDefault(logger)
 
-	err := run.Run(logger)
+	err := run.Run()
 	if err != nil {
 		log.Fatal(err)
 	}

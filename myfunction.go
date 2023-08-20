@@ -24,7 +24,9 @@ func myCloudEventFunction(ctx context.Context, e event.Event) error {
 		Level:     slog.LevelWarn,
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, opt))
-	err := run.Run(logger)
+	slog.SetDefault(logger)
+
+	err := run.Run()
 	if err != nil {
 		return err
 	}

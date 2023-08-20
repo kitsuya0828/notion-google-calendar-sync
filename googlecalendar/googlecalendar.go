@@ -3,7 +3,6 @@ package googlecalendar
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
@@ -15,7 +14,7 @@ func NewService(ctx context.Context) (*calendar.Service, error) {
 	return calendar.NewService(ctx)
 }
 
-func ListEvents(logger *slog.Logger, service *calendar.Service, calendarID string) ([]*db.Event, error) {
+func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, error) {
 	events := []*db.Event{}
 	result, err := service.Events.List(calendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
 	if err != nil {
@@ -34,7 +33,7 @@ func ListEvents(logger *slog.Logger, service *calendar.Service, calendarID strin
 			GoogleCalendarEventID: item.Id,
 			Description:           item.Description,
 		}
-		logger.Debug("parse item", "item", item)
+		slog.Debug("parse item", "item", item)
 
 		createdTime, err := time.Parse(time.RFC3339, item.Created)
 		if err != nil {
@@ -92,7 +91,7 @@ func ListEvents(logger *slog.Logger, service *calendar.Service, calendarID strin
 		}
 		events = append(events, event)
 	}
-	logger.Info("count number of google calendar events", "num", len(events))
+	slog.Info("list google calendar events", "num", len(events))
 	return events, nil
 }
 
@@ -129,6 +128,7 @@ func InsertEvent(service *calendar.Service, calendarID string, event *db.Event) 
 	if err != nil {
 		return "", err
 	}
+	slog.Info("insert google calendar event", "event", result)
 	return result.Id, nil
 }
 
@@ -167,11 +167,15 @@ func UpdateEvent(service *calendar.Service, calendarID string, event *db.Event) 
 	if err != nil {
 		return err
 	}
-	log.Println("gc updated: ", result)
+	slog.Info("update google calendar event", "event", result)
 	return nil
 }
 
 func DeleteEvent(service *calendar.Service, calendarID string, event *db.Event) error {
 	err := service.Events.Delete(calendarID, event.GoogleCalendarEventID).Do()
-	return err
+	if err != nil {
+		return err
+	}
+	slog.Info("delete google calendar event", "id", event.GoogleCalendarEventID)
+	return nil
 }
