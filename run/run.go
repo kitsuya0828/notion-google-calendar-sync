@@ -7,72 +7,62 @@ import (
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/googlecalendar"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/notioncalendar"
-	"github.com/caarlos0/env/v9"
 	"golang.org/x/exp/slog"
 )
-
-type Config struct {
-	NotionToken           string `env:"NOTION_TOKEN,notEmpty"`
-	NotionDefaultTimeZone string `env:"NOTION_DEFAULT_TIMEZONE,notEmpty"`
-	NotionDatabaseID      string `env:"NOTION_DATABASE_ID,notEmpty"`
-	GoogleCalendarID      string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
-	ProjectID             string `env:"PROJECT_ID,notEmpty"`
-}
 
 func Run() error {
 	ctx := context.Background()
 
-	// Parse environment varibles
-	cfg := Config{}
-	if err := env.Parse(&cfg); err != nil {
-		return fmt.Errorf("parse env: %v", err)
-	}
-
 	// List future events in Notion database
 	slog.Debug("list notion events")
-	notionClient := notioncalendar.NewClient(cfg.NotionToken)
-	notionEvents, err := notioncalendar.ListEvents(ctx, notionClient, cfg.NotionDatabaseID, cfg.NotionDefaultTimeZone)
+	notionCalendarService, err := notioncalendar.NewService()
+	if err != nil {
+		return fmt.Errorf("initialize notion calendar service: %v", err)
+	}
+	notionEvents, err := notionCalendarService.ListEvents(ctx)
 	if err != nil {
 		return fmt.Errorf("list notion events: %v", err)
 	}
-
 	// List future events in Google Calendar
 	slog.Debug("list google calendar events")
 	googleCalendarService, err := googlecalendar.NewService(ctx)
 	if err != nil {
 		return fmt.Errorf("initialize google calendar service: %v", err)
 	}
-	googleCalendarEvents, err := googlecalendar.ListEvents(googleCalendarService, cfg.GoogleCalendarID)
+	googleCalendarEvents, err := googleCalendarService.ListEvents()
 	if err != nil {
 		return fmt.Errorf("list google calendar events: %v", err)
 	}
 
 	// Initialize Firestore client
 	slog.Debug("initialize firestore client")
-	firestoreClient := db.CreateClient(ctx, cfg.ProjectID)
-	defer firestoreClient.Close()
+	databaseService, err := db.CreateService(ctx)
+	if err != nil {
+		return fmt.Errorf("initialize database service: %v", err)
+	}
+	defer databaseService.Close()
 
 	// Check if new events have been added
 	slog.Debug("check for added events")
-	err = checkAdd(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
+	err = checkAdd(ctx, notionCalendarService, googleCalendarService, notionEvents, googleCalendarEvents, databaseService)
 	if err != nil {
 		return fmt.Errorf("check for added events: %v", err)
 	}
 
 	// List future events again
 	slog.Debug("list notion events again")
-	notionEvents, err = notioncalendar.ListEvents(ctx, notionClient, cfg.NotionDatabaseID, cfg.NotionDefaultTimeZone)
+	notionEvents, err = notionCalendarService.ListEvents(ctx)
 	if err != nil {
 		return fmt.Errorf("list notion events again: %v", err)
 	}
 	slog.Debug("list google calendar events again")
-	googleCalendarEvents, err = googlecalendar.ListEvents(googleCalendarService, cfg.GoogleCalendarID)
+	googleCalendarEvents, err = googleCalendarService.ListEvents()
 	if err != nil {
 		return fmt.Errorf("list google calendar events again: %v", err)
 	}
 
 	// Check if events have been updated or deleted
-	err = checkUpdate(ctx, cfg, notionClient, googleCalendarService, notionEvents, googleCalendarEvents, firestoreClient)
+	err = checkUpdate(ctx, notionCalendarService, googleCalendarService, notionEvents, googleCalendarEvents, databaseService)
 	if err != nil {
 		return fmt.Errorf("check for updated or deleted events: %v", err)
 	}

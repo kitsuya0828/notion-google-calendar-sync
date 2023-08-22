@@ -1,11 +1,10 @@
 package run
 
 import (
-	"log"
-
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/exp/slog"
 )
 
 func getEventsIDMap(events []*db.Event) map[string]*db.Event {
@@ -42,7 +41,7 @@ func getCorrectEvent(dbEvent *db.Event, notionEvent *db.Event, googleCalendarEve
 	diff := cmp.Diff(dbEvent, notionEvent, notionOpts...)
 	if diff != "" {
 		isNotionUpdated = true
-		log.Println(diff)
+		slog.Info("compare db event with notion event", diff)
 	}
 
 	googleCalendarOpts := []cmp.Option{
@@ -53,7 +52,7 @@ func getCorrectEvent(dbEvent *db.Event, notionEvent *db.Event, googleCalendarEve
 	diff = cmp.Diff(dbEvent, googleCalendarEvent, googleCalendarOpts...)
 	if diff != "" {
 		isGoogleCalendarUpdated = true
-		log.Println(diff)
+		slog.Info("compare db event with google calendar event", diff)
 	}
 
 	if isNotionUpdated && !isGoogleCalendarUpdated {

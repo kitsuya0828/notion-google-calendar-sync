@@ -6,6 +6,8 @@ import (
 	"log"
 
 	"cloud.google.com/go/firestore"
+	"github.com/caarlos0/env/v9"
+	"golang.org/x/exp/slog"
 	"google.golang.org/api/iterator"
 )
 
@@ -13,48 +15,60 @@ const (
 	collectionID = "events"
 )
 
-func CreateClient(ctx context.Context, projectID string) *firestore.Client {
-	client, err := firestore.NewClient(ctx, projectID)
+type Config struct {
+	ProjectID string `env:"GOOGLE_CLOUD_PROJECT_ID,notEmpty"`
+}
+
+type DatabaseService struct {
+	client *firestore.Client
+}
+
+func CreateService(ctx context.Context) (*DatabaseService, error) {
+	cfg := Config{}
+	if err := env.Parse(&cfg); err != nil {
+		return nil, fmt.Errorf("parse env: %v", err)
+	}
+	c, err := firestore.NewClient(ctx, cfg.ProjectID)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
-	// Close client when done with
-	// defer client.Close()
-	return client
+	ds := &DatabaseService{
+		client: c,
+	}
+	return ds, nil
 }
 
-func AddEvent(ctx context.Context, client *firestore.Client, event *Event) error {
+func (ds *DatabaseService) AddEvent(ctx context.Context, event *Event) error {
 	uuid := event.UUID
-	if uuid == "" {
-		return fmt.Errorf("no UUID is set for the event: %v", event)
-	}
 
-	result, err := client.Collection(collectionID).Doc(uuid).Create(ctx, event)
+	_, err := ds.client.Collection(collectionID).Doc(uuid).Create(ctx, event)
 	if err != nil {
-		return err
+		return fmt.Errorf("create a document: %v", err)
 	}
-	log.Println("db add: ", result)
+	slog.Info("added an event to db", "uuid", event.UUID)
 	return nil
 }
 
-func SetEvent(ctx context.Context, client *firestore.Client, event *Event) error {
-	_, err := client.Collection(collectionID).Doc(event.UUID).Set(ctx, event)
+func (ds *DatabaseService) SetEvent(ctx context.Context, event *Event) error {
+	_, err := ds.client.Collection(collectionID).Doc(event.UUID).Set(ctx, event)
 	if err != nil {
-		return err
+		return fmt.Errorf("overwrite a document: %v", err)
 	}
+	slog.Info("set an event on db", "uuid", event.UUID)
 	return nil
 }
 
-func DeleteEvent(ctx context.Context, client *firestore.Client, event *Event) error {
-	_, err := client.Collection(collectionID).Doc(event.UUID).Delete(ctx)
+func (ds *DatabaseService) DeleteEvent(ctx context.Context, event *Event) error {
+	_, err := ds.client.Collection(collectionID).Doc(event.UUID).Delete(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete a document: %v", err)
 	}
+	slog.Info("delete an event on db", "uuid", event.UUID)
 	return nil
 }
 
-func ListEvents(ctx context.Context, client *firestore.Client) ([]*Event, error) {
-	iter := client.Collection(collectionID).Documents(ctx)
+func (ds *DatabaseService) ListEvents(ctx context.Context) ([]*Event, error) {
+	iter := ds.client.Collection(collectionID).Documents(ctx)
 	events := []*Event{}
 	for {
 		doc, err := iter.Next()
@@ -62,16 +76,20 @@ func ListEvents(ctx context.Context, client *firestore.Client) ([]*Event, error)
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("iterate document: %v", err)
 		}
-		// fmt.Println(doc.Data())
 
 		var event Event
 		err = doc.DataTo(&event)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("convert from document to event type: %v", err)
 		}
 		events = append(events, &event)
 	}
+	slog.Info("listed db events", "num", len(events))
 	return events, nil
+}
+
+func (ds *DatabaseService) Close() error {
+	return ds.client.Close()
 }

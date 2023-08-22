@@ -6,17 +6,39 @@ import (
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"github.com/caarlos0/env/v9"
 	"golang.org/x/exp/slog"
 	"google.golang.org/api/calendar/v3"
 )
 
-func NewService(ctx context.Context) (*calendar.Service, error) {
-	return calendar.NewService(ctx)
+type Config struct {
+	CalendarID string `env:"GOOGLE_CALENDAR_ID,notEmpty"`
 }
 
-func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, error) {
+type CalendarService struct {
+	service *calendar.Service
+	config  Config
+}
+
+func NewService(ctx context.Context) (*CalendarService, error) {
+	srv, err := calendar.NewService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create a new service: %v", err)
+	}
+	cfg := Config{}
+	if err := env.Parse(&cfg); err != nil {
+		return nil, fmt.Errorf("parse env: %v", err)
+	}
+	cs := &CalendarService{
+		service: srv,
+		config:  cfg,
+	}
+	return cs, nil
+}
+
+func (cs *CalendarService) ListEvents() ([]*db.Event, error) {
 	events := []*db.Event{}
-	result, err := service.Events.List(calendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
+	result, err := cs.service.Events.List(cs.config.CalendarID).TimeMin(time.Now().Format(time.RFC3339)).Do()
 	if err != nil {
 		return nil, fmt.Errorf("execute calendar.events.list call: %v", err)
 	}
@@ -33,7 +55,6 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 			GoogleCalendarEventID: item.Id,
 			Description:           item.Description,
 		}
-		slog.Debug("parse item", "item", item)
 
 		createdTime, err := time.Parse(time.RFC3339, item.Created)
 		if err != nil {
@@ -89,13 +110,14 @@ func ListEvents(service *calendar.Service, calendarID string) ([]*db.Event, erro
 				break
 			}
 		}
+		slog.Debug("parsed google calendar event", "event", event)
 		events = append(events, event)
 	}
-	slog.Info("list google calendar events", "num", len(events))
+	slog.Info("listed google calendar events", "num", len(events))
 	return events, nil
 }
 
-func InsertEvent(service *calendar.Service, calendarID string, event *db.Event) (string, error) {
+func (cs *CalendarService) InsertEvent(event *db.Event) (string, error) {
 	startDateTime := &calendar.EventDateTime{
 		DateTime: event.StartTime.Format(time.RFC3339),
 	}
@@ -124,15 +146,15 @@ func InsertEvent(service *calendar.Service, calendarID string, event *db.Event) 
 		ColorId: db.ColorMap[event.Color],
 	}
 
-	result, err := service.Events.Insert(calendarID, e).Do()
+	result, err := cs.service.Events.Insert(cs.config.CalendarID, e).Do()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("execute calendar.events.insert call: %v", err)
 	}
-	slog.Info("insert google calendar event", "event", result)
+	slog.Info("inserted google calendar event", "event", result)
 	return result.Id, nil
 }
 
-func UpdateEvent(service *calendar.Service, calendarID string, event *db.Event) error {
+func (cs *CalendarService) UpdateEvent(event *db.Event) error {
 	startDateTime := &calendar.EventDateTime{
 		DateTime: event.StartTime.Format(time.RFC3339),
 	}
@@ -163,19 +185,19 @@ func UpdateEvent(service *calendar.Service, calendarID string, event *db.Event) 
 		e.ColorId = db.ColorMap[event.Color]
 	}
 
-	result, err := service.Events.Update(calendarID, event.GoogleCalendarEventID, e).Do()
+	result, err := cs.service.Events.Update(cs.config.CalendarID, event.GoogleCalendarEventID, e).Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("execute calendar.events.update call: %v", err)
 	}
-	slog.Info("update google calendar event", "event", result)
+	slog.Info("updated google calendar event", "event", result)
 	return nil
 }
 
-func DeleteEvent(service *calendar.Service, calendarID string, event *db.Event) error {
-	err := service.Events.Delete(calendarID, event.GoogleCalendarEventID).Do()
+func (cs *CalendarService) DeleteEvent(event *db.Event) error {
+	err := cs.service.Events.Delete(cs.config.CalendarID, event.GoogleCalendarEventID).Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("execute calendar.events.delete call: %v", err)
 	}
-	slog.Info("delete google calendar event", "id", event.GoogleCalendarEventID)
+	slog.Info("deleted google calendar event", "id", event.GoogleCalendarEventID)
 	return nil
 }

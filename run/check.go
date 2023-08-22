@@ -2,59 +2,57 @@ package run
 
 import (
 	"context"
+	"fmt"
 
-	"cloud.google.com/go/firestore"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/googlecalendar"
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/notioncalendar"
-	"github.com/dstotijn/go-notion"
 	"github.com/google/uuid"
-	"google.golang.org/api/calendar/v3"
+	"golang.org/x/exp/slog"
 )
 
 func checkAdd(
 	ctx context.Context,
-	cfg Config,
-	notionClient *notion.Client,
-	googleCalendarService *calendar.Service,
+	notionCalendarService *notioncalendar.CalendarService,
+	googleCalendarService *googlecalendar.CalendarService,
 	notionEvents []*db.Event,
 	googleCalendarEvents []*db.Event,
-	firestoreClient *firestore.Client,
+	databaseService *db.DatabaseService,
 ) error {
 	events := append(notionEvents, googleCalendarEvents...)
 	for _, event := range events {
 		if event.UUID == "" { // Not yet added to the database
 			uuid, err := uuid.NewRandom()
 			if err != nil {
-				return err
+				return fmt.Errorf("randomly generate a UUID: %v", err)
 			}
 			event.UUID = uuid.String()
 
 			if event.NotionEventID == "" { // Not yet added to Notion
-				notionEventID, err := notioncalendar.CreateEvent(ctx, notionClient, cfg.NotionDatabaseID, event)
+				notionEventID, err := notionCalendarService.CreateEvent(ctx, event)
 				if err != nil {
-					return err
+					return fmt.Errorf("create notion event for newly added google calendar event: %v", err)
 				}
 				event.NotionEventID = notionEventID
-				err = googlecalendar.UpdateEvent(googleCalendarService, cfg.GoogleCalendarID, event)
+				err = googleCalendarService.UpdateEvent(event)
 				if err != nil {
-					return err
+					return fmt.Errorf("update uuid for newly added google calendar event: %v", err)
 				}
 			} else if event.GoogleCalendarEventID == "" { // // Not yet added to Google Calendar
-				googleCalendarEventID, err := googlecalendar.InsertEvent(googleCalendarService, cfg.GoogleCalendarID, event)
+				googleCalendarEventID, err := googleCalendarService.InsertEvent(event)
 				if err != nil {
-					return err
+					return fmt.Errorf("create google calendar event for newly added notion event: %v", err)
 				}
 				event.GoogleCalendarEventID = googleCalendarEventID
-				err = notioncalendar.UpdateEvent(ctx, notionClient, event)
+				err = notionCalendarService.UpdateEvent(ctx, event)
 				if err != nil {
-					return err
+					return fmt.Errorf("update uuid for newly added notion event: %v", err)
 				}
 			}
 
-			err = db.AddEvent(ctx, firestoreClient, event)
+			err = databaseService.AddEvent(ctx, event)
 			if err != nil {
-				return err
+				return fmt.Errorf("add a newly added event to db: %v", err)
 			}
 		}
 	}
@@ -63,16 +61,15 @@ func checkAdd(
 
 func checkUpdate(
 	ctx context.Context,
-	cfg Config,
-	notionClient *notion.Client,
-	googleCalendarService *calendar.Service,
+	notionCalendarService *notioncalendar.CalendarService,
+	googleCalendarService *googlecalendar.CalendarService,
 	notionEvents []*db.Event,
 	googleCalendarEvents []*db.Event,
-	firestoreClient *firestore.Client,
+	databaseService *db.DatabaseService,
 ) error {
-	events, err := db.ListEvents(ctx, firestoreClient)
+	events, err := databaseService.ListEvents(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("list db events before checking update: %v", err)
 	}
 	for _, event := range events {
 		isNotionDeleted := false
@@ -94,43 +91,44 @@ func checkUpdate(
 		// If the event is deleted either on Notion or Google Calendar
 		// TODO: Maintain consistency of events
 		if isNotionDeleted && !isGoogleCalendarDeleted {
-			err := googlecalendar.DeleteEvent(googleCalendarService, cfg.GoogleCalendarID, event)
+			err := googleCalendarService.DeleteEvent(event)
 			if err != nil {
-				return err
+				return fmt.Errorf("delete google calendar event for deleted notion event: %v", err)
 			}
-			err = db.DeleteEvent(ctx, firestoreClient, event)
+			err = databaseService.DeleteEvent(ctx, event)
 			if err != nil {
-				return err
+				return fmt.Errorf("delete db event for deleted notion event: %v", err)
 			}
 			continue
 		} else if !isNotionDeleted && isGoogleCalendarDeleted {
-			err := notioncalendar.DeleteEvent(ctx, notionClient, event)
+			err := notionCalendarService.DeleteEvent(ctx, event)
 			if err != nil {
-				return err
+				return fmt.Errorf("delete notion event for deleted google calendar event: %v", err)
 			}
-			err = db.DeleteEvent(ctx, firestoreClient, event)
+			err = databaseService.DeleteEvent(ctx, event)
 			if err != nil {
-				return err
+				return fmt.Errorf("delete db event for deleted google calendar event: %v", err)
 			}
 			continue
 		}
 
 		correctEvent, isNotionUpdated, isGoogleCalendarUpdated := getCorrectEvent(event, notionEvent, googelCalendarEvent)
+		slog.Debug("check update", "notion", isNotionUpdated, "google calendar", isGoogleCalendarUpdated, "uuid", event.UUID)
 		if isNotionUpdated || isGoogleCalendarUpdated {
-			err := db.SetEvent(ctx, firestoreClient, correctEvent)
+			err := databaseService.SetEvent(ctx, correctEvent)
 			if err != nil {
-				return err
+				return fmt.Errorf("set correct event to db while checking update: %v", err)
 			}
 			if isNotionUpdated {
-				err := googlecalendar.UpdateEvent(googleCalendarService, cfg.GoogleCalendarID, correctEvent)
+				err := googleCalendarService.UpdateEvent(correctEvent)
 				if err != nil {
-					return err
+					return fmt.Errorf("set correct event to google calendar while checking update: %v", err)
 				}
 			}
 			if isGoogleCalendarUpdated {
-				err := notioncalendar.UpdateEvent(ctx, notionClient, correctEvent)
+				err := notionCalendarService.UpdateEvent(ctx, correctEvent)
 				if err != nil {
-					return err
+					return fmt.Errorf("set correct event to notion while checking update: %v", err)
 				}
 			}
 		}

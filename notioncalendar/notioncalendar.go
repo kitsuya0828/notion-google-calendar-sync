@@ -2,24 +2,49 @@ package notioncalendar
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"github.com/caarlos0/env/v9"
 	"github.com/dstotijn/go-notion"
+	"golang.org/x/exp/slog"
 )
 
-func NewClient(token string) *notion.Client {
-	client := notion.NewClient(token)
-	return client
+type Config struct {
+	Token                   string `env:"NOTION_TOKEN,notEmpty"`
+	DefaultTimeZone         string `env:"NOTION_DEFAULT_TIMEZONE,notEmpty"`
+	DatabaseID              string `env:"NOTION_DATABASE_ID,notEmpty"`
+	DescriptionPropertyName string `env:"NOTION_DESCRIPTION_PROPERTY_NAME" envDefault:"Description"`
+	TagsPropertyName        string `env:"NOTION_TAGS_PROPERTY_NAME" envDefault:"Tags"`
+	DatePropertyName        string `env:"NOTION_DATE_PROPERTY_NAME" envDefault:"Date"`
+	UUIDPropertyName        string `env:"NOTION_UUID_PROPERTY_NAME" envDefault:"UUID"`
 }
 
-func ListEvents(ctx context.Context, client *notion.Client, databaseID string, tz string) ([]*db.Event, error) {
+type CalendarService struct {
+	client *notion.Client
+	config Config
+}
+
+func NewService() (*CalendarService, error) {
+	cfg := Config{}
+	if err := env.Parse(&cfg); err != nil {
+		return nil, fmt.Errorf("parse env: %v", err)
+	}
+	c := notion.NewClient(cfg.Token)
+	cs := &CalendarService{
+		client: c,
+		config: cfg,
+	}
+	return cs, nil
+}
+
+func (cs *CalendarService) ListEvents(ctx context.Context) ([]*db.Event, error) {
 	now := time.Now()
 	req := &notion.DatabaseQuery{
 		Filter: &notion.DatabaseQueryFilter{
-			Property: "Date",
+			Property: cs.config.DatePropertyName,
 			DatabaseQueryPropertyFilter: notion.DatabaseQueryPropertyFilter{
 				Date: &notion.DatePropertyFilter{
 					After: &now,
@@ -30,16 +55,16 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 
 	events := []*db.Event{}
 
-	loc, err := time.LoadLocation(tz)
+	loc, err := time.LoadLocation(cs.config.DefaultTimeZone)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load location: %v", err)
 	}
 	time.Local = loc
 
 	for {
-		response, err := client.QueryDatabase(ctx, databaseID, req)
+		response, err := cs.client.QueryDatabase(ctx, cs.config.DatabaseID, req)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("query database: %v", err)
 		}
 		result := response.Results
 
@@ -48,6 +73,7 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 
 			props, ok := page.Properties.(notion.DatabasePageProperties)
 			if !ok {
+				slog.Error("type assertion failed", "page.Properties", page.Properties)
 				continue
 			}
 
@@ -61,8 +87,10 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 					event.Title = strings.Join(titles, "\n")
 				case "multi_select":
 					for _, o := range prop.MultiSelect {
-						event.Color = string(o.Color)
-						break
+						if key == cs.config.TagsPropertyName {
+							event.Color = string(o.Color)
+							break
+						}
 					}
 				case "created_time":
 					event.CreatedTime = *prop.CreatedTime
@@ -71,10 +99,10 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 				case "rich_text":
 					descriptions := []string{}
 					for _, rt := range prop.RichText {
-						if key == "UUID" {
+						if key == cs.config.UUIDPropertyName {
 							event.UUID = rt.Text.Content
 							break
-						} else {
+						} else if key == cs.config.DescriptionPropertyName {
 							descriptions = append(descriptions, rt.Text.Content)
 						}
 					}
@@ -105,8 +133,11 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 					// if prop.Date.TimeZone != nil {
 					// 	fmt.Println(prop.Date.TimeZone)
 					// }
+				default:
+					slog.Debug("property type unsupported", "type", pt)
 				}
 			}
+			slog.Debug("parsed notion event", "event", event)
 			events = append(events, event)
 		}
 
@@ -116,10 +147,11 @@ func ListEvents(ctx context.Context, client *notion.Client, databaseID string, t
 			break
 		}
 	}
+	slog.Info("listed notion events", "num", len(events))
 	return events, nil
 }
 
-func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, event *db.Event) (string, error) {
+func (cs *CalendarService) CreateEvent(ctx context.Context, event *db.Event) (string, error) {
 	date := &notion.Date{
 		Start: notion.NewDateTime(event.StartTime, !event.IsAllday),
 	}
@@ -136,7 +168,7 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 
 	params := notion.CreatePageParams{
 		ParentType: notion.ParentTypeDatabase,
-		ParentID:   databaseID,
+		ParentID:   cs.config.DatabaseID,
 		DatabasePageProperties: &notion.DatabasePageProperties{
 			"title": notion.DatabasePageProperty{
 				Title: []notion.RichText{
@@ -147,7 +179,7 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 					},
 				},
 			},
-			"説明": notion.DatabasePageProperty{
+			cs.config.DescriptionPropertyName: notion.DatabasePageProperty{
 				RichText: []notion.RichText{
 					{
 						Text: &notion.Text{
@@ -156,10 +188,10 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 					},
 				},
 			},
-			"Date": notion.DatabasePageProperty{
+			cs.config.DatePropertyName: notion.DatabasePageProperty{
 				Date: date,
 			},
-			"UUID": notion.DatabasePageProperty{
+			cs.config.UUIDPropertyName: notion.DatabasePageProperty{
 				RichText: []notion.RichText{
 					{
 						Text: &notion.Text{
@@ -171,14 +203,15 @@ func CreateEvent(ctx context.Context, client *notion.Client, databaseID string, 
 		},
 	}
 
-	page, err := client.CreatePage(ctx, params)
+	page, err := cs.client.CreatePage(ctx, params)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("call api to create a page: %v", err)
 	}
+	slog.Info("created notion event", "page", page)
 	return page.ID, nil
 }
 
-func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) error {
+func (cs *CalendarService) UpdateEvent(ctx context.Context, event *db.Event) error {
 	date := &notion.Date{
 		Start: notion.NewDateTime(event.StartTime, !event.IsAllday),
 	}
@@ -204,7 +237,7 @@ func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) er
 					},
 				},
 			},
-			"説明": notion.DatabasePageProperty{
+			cs.config.DescriptionPropertyName: notion.DatabasePageProperty{
 				RichText: []notion.RichText{
 					{
 						Text: &notion.Text{
@@ -213,10 +246,10 @@ func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) er
 					},
 				},
 			},
-			"Date": notion.DatabasePageProperty{
+			cs.config.DatePropertyName: notion.DatabasePageProperty{
 				Date: date,
 			},
-			"UUID": notion.DatabasePageProperty{
+			cs.config.UUIDPropertyName: notion.DatabasePageProperty{
 				RichText: []notion.RichText{
 					{
 						Text: &notion.Text{
@@ -228,23 +261,23 @@ func UpdateEvent(ctx context.Context, client *notion.Client, event *db.Event) er
 		},
 	}
 
-	result, err := client.UpdatePage(ctx, event.NotionEventID, params)
+	result, err := cs.client.UpdatePage(ctx, event.NotionEventID, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("call api to update a page: %v", err)
 	}
-	log.Println("n updated: ", result)
+	slog.Info("updated notion event", "page", result)
 	return nil
 }
 
-func DeleteEvent(ctx context.Context, client *notion.Client, event *db.Event) error {
+func (cs *CalendarService) DeleteEvent(ctx context.Context, event *db.Event) error {
 	archived := true
 	params := notion.UpdatePageParams{
 		Archived: &archived,
 	}
-	result, err := client.UpdatePage(ctx, event.NotionEventID, params)
+	result, err := cs.client.UpdatePage(ctx, event.NotionEventID, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("call api to archive a page: %v", err)
 	}
-	log.Println("n deleted: ", result)
+	slog.Info("deleted notion event", "page", result)
 	return nil
 }
