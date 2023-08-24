@@ -1,0 +1,6 @@
+locals {
+  project_id = "xxxxxx-xxxxxxxx-xxxxxx"
+  region     = "asia-northeast1"
+
+  service_name = "notion-google-calendar-sync"
+}
