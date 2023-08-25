@@ -3,4 +3,6 @@ locals {
   region     = "asia-northeast1"
 
   service_name = "notion-google-calendar-sync"
+  # Every bucket name must be globally unique
+  bucket_name  = "notion-g-calendar-sync-xxxx"
 }
