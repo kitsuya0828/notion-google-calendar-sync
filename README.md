@@ -3,7 +3,8 @@
 **notion-google-calendar-sync** is a tool for two-way synchronisation between Notion and Google Calendar.
 
 ## Features
-![notion-google-calendar-sync](https://github.com/Kitsuya0828/notion-google-calendar-sync/assets/60843722/9ec42b2e-9151-4ce4-9647-6c52fe3bc0ac)
+
+<img src="./docs/imgs/notion-google-calendar-sync.jpeg" />
 
 * Periodically monitor and synchronize Notion and Google Calendar events
 * The tool is deployed to Google Cloud, all using free tier products (Cloud Functions, Cloud FireStore, etc.)
@@ -17,7 +18,8 @@
 * [Google Calendar](https://calendar.google.com/)
 
 The properties to be synchronized between Notion and Google Calendar are shown in the figure below:
-![calendar-properties-sync](https://github.com/Kitsuya0828/notion-google-calendar-sync/assets/60843722/28c8ccea-e003-4bb2-867b-ce6ebf2089cc)
+
+<img src="./docs/imgs/calendar-properties-sync.jpeg" />
 
 Note that the properties marked with an star in Notion must be created by the user before deploying. 
 The property name does not have to be `Date`/`Tags`/`UUID`/`Description`, but if it is changed, it should be set to a runtime environment variable (`NOTION_DATE_PROPERTY_NAME`/`NOTION_TAGS_PROPERTY_NAME`/`NOTION_UUID_PROPERTY_NAME`/`NOTION_DESCRIPTION_PROPERTY_NAME`) to distinguish it from other properties when getting events.
@@ -57,7 +59,7 @@ service_account_email = "notion-google-calendar-sync@xxxxxx-xxxxxxxx-xxxxxx.iam.
 ```
 Then, in your Google Calendar, remember to grant the appropriate permissions to the service account you have created.
 
-![google-calendar-grant-permission](https://github.com/Kitsuya0828/notion-google-calendar-sync/assets/60843722/28b921b2-7a25-43a2-a429-04b013f65ab6)
+<img src="./docs/imgs/google-calendar-grant-permission.png" />
 
 ## FAQ
 ### Can I change the frequency of synchronization?
