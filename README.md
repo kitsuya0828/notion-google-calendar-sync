@@ -40,6 +40,7 @@ gcloud services enable compute.googleapis.com cloudscheduler.googleapis.com logg
 ```
 
 Now we can finally deploy the tool to Google Cloud.
+
 You can change it later on the Google Cloud console, but if it bothers you, you can change the runtime environment variables from [`infra/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/blob/734cd9b1151176eeec4f13b72a536ba942aa2ea9/infra/main.tf#L79) before executing the following Terraform commands.
 
 ```bash
@@ -57,6 +58,14 @@ service_account_email = "notion-google-calendar-sync@xxxxxx-xxxxxxxx-xxxxxx.iam.
 Then, in your Google Calendar, remember to grant the appropriate permissions to the service account you have created.
 
 ![google-calendar-grant-permission](https://github.com/Kitsuya0828/notion-google-calendar-sync/assets/60843722/28b921b2-7a25-43a2-a429-04b013f65ab6)
+
+## FAQ
+### Can I change the frequency of synchronization?
+You can change the frequency of synchronization specified in [`infra/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/blob/81ffdd213620a7568c1ac7b681a50501402628d6/infra/main.tf#L29). Please refer to the following URL for the cron job format.
+
+[Cron job format and time zone  \|  Cloud Scheduler Documentation  \|  Google Cloud](https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules)
+
+Note that extremely high synchronization frequency may exceed Google Cloud's free tier.
 
 ## License
 "notion-google-calendar-sync" is under [MIT License](https://opensource.org/license/mit/).
