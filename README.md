@@ -16,6 +16,13 @@
 * [Notion API Integration](https://www.notion.so/help/create-integrations-with-the-notion-api)
 * [Google Calendar](https://calendar.google.com/)
 
+The properties to be synchronized between Notion and Google Calendar are shown in the figure below:
+![calendar-properties-sync](https://github.com/Kitsuya0828/notion-google-calendar-sync/assets/60843722/28c8ccea-e003-4bb2-867b-ce6ebf2089cc)
+
+Note that the properties marked with an star in Notion must be created by the user before deploying. 
+The property name does not have to be `Date`/`Tags`/`UUID`/`Description`, but if it is changed, it should be set to a runtime environment variable (`NOTION_DATE_PROPERTY_NAME`/`NOTION_TAGS_PROPERTY_NAME`/`NOTION_UUID_PROPERTY_NAME`/`NOTION_DESCRIPTION_PROPERTY_NAME`) to distinguish it from other properties when getting events.
+
+
 ## Deploy
 Copy the template to `locals.tf` and edit it to match your Google Cloud Project configuration. Be especially careful that `bucket_name` must be globally unique.
 ```bash
