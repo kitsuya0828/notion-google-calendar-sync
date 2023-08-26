@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/run"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/run"
 	"golang.org/x/exp/slog"
 )
 

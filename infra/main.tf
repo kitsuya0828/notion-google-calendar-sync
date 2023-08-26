@@ -99,7 +99,7 @@ resource "google_cloudfunctions2_function" "default" {
   lifecycle {
     ignore_changes = [
       service_config[0].environment_variables,
-      build_config[0].source[0].storage_source
+      # build_config[0].source[0].storage_source
     ]
   }
 }

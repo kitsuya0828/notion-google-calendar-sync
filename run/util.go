@@ -1,7 +1,7 @@
 package run
 
 import (
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/db"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/exp/slog"

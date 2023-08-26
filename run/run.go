@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/googlecalendar"
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/notioncalendar"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/db"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/googlecalendar"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/notioncalendar"
 	"golang.org/x/exp/slog"
 )
 

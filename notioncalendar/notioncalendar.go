@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/db"
 	"github.com/caarlos0/env/v9"
 	"github.com/dstotijn/go-notion"
 	"golang.org/x/exp/slog"

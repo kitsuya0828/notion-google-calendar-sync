@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/run"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/run"
 	"github.com/cloudevents/sdk-go/v2/event"
 	"golang.org/x/exp/slog"
 )

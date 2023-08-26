@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Kitsuya0828/notion-googlecalendar-sync/db"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/db"
 	"github.com/caarlos0/env/v9"
 	"golang.org/x/exp/slog"
 	"google.golang.org/api/calendar/v3"
