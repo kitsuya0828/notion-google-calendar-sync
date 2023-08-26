@@ -26,7 +26,7 @@ The property name does not have to be `Date`/`Tags`/`UUID`/`Description`, but if
 ## Deploy
 Copy the template to `locals.tf` and edit it to match your Google Cloud Project configuration. Be especially careful that `bucket_name` must be globally unique.
 ```bash
-cd terraform
+cd infra
 cp locals.tf.tmp locals.tf
 ```
 
