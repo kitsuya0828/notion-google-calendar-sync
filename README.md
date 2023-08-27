@@ -28,14 +28,14 @@ The property name does not have to be `Date`/`Tags`/`UUID`/`Description`, but if
 ## Deploy
 Copy the template to `locals.tf` and edit it to match your Google Cloud Project configuration. Be especially careful that `bucket_name` must be globally unique.
 ```bash
-cd infra
+cd terraform
 cp locals.tf.tmp locals.tf
 ```
 
 Enbale the Google Cloud APIs to be used.
 You can enable the APIs automatically using Terraform, but it may take some time to be activated, so use the `gcloud` command.
 ```bash
-# infra/init.sh
+# terraform/init.sh
 PROJECT_ID="xxxxxx-xxxxxxxx-xxxxxx" # Change Required
 gcloud auth login
 gcloud services enable compute.googleapis.com cloudscheduler.googleapis.com logging.googleapis.com cloudfunctions.googleapis.com eventarc.googleapis.com run.googleapis.com calendar-json.googleapis.com firestore.googleapis.com --project "${PROJECT_ID}"
@@ -43,7 +43,7 @@ gcloud services enable compute.googleapis.com cloudscheduler.googleapis.com logg
 
 Now we can finally deploy the tool to Google Cloud.
 
-You can change it later on the Google Cloud console, but if it bothers you, you can change the runtime environment variables from [`infra/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/blob/734cd9b1151176eeec4f13b72a536ba942aa2ea9/infra/main.tf#L79) before executing the following Terraform commands.
+You can change it later on the Google Cloud console, but if it bothers you, you can change the runtime environment variables from [`terraform/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/terraform/main.tf#L79) before executing the following Terraform commands.
 
 ```bash
 gcloud auth application-default login
@@ -63,7 +63,7 @@ Then, in your Google Calendar, remember to grant the appropriate permissions to 
 
 ## FAQ
 ### Can I change the frequency of synchronization?
-You can change the frequency of synchronization specified in [`infra/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/blob/81ffdd213620a7568c1ac7b681a50501402628d6/infra/main.tf#L29). Please refer to the following URL for the cron job format.
+You can change the frequency of synchronization specified in [`terraform/main.tf`](https://github.com/Kitsuya0828/notion-google-calendar-sync/terraform/main.tf#L29). Please refer to the following URL for the cron job format.
 
 [Cron job format and time zone  \|  Cloud Scheduler Documentation  \|  Google Cloud](https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules)
 
