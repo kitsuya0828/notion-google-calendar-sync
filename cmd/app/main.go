@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Kitsuya0828/notion-google-calendar-sync/run"
+	"github.com/Kitsuya0828/notion-google-calendar-sync/internal/task"
 	"golang.org/x/exp/slog"
 )
 
@@ -16,7 +16,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, opt))
 	slog.SetDefault(logger)
 
-	err := run.Run()
+	err := task.Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
