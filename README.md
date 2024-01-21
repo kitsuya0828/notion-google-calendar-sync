@@ -2,6 +2,9 @@
 
 **notion-google-calendar-sync** is a tool for two-way synchronisation between Notion and Google Calendar.
 
+> [!NOTE]
+> The use of this tool is deprecated since the [Notion calendar](https://www.notion.so/product/calendar) was released in January 2024, which can be synchronized with Google Calendar by simply logging in with a Google account.
+
 ## Features
 
 <img src="./docs/imgs/notion-google-calendar-sync.jpeg" />
